@@ -37,6 +37,7 @@ class Gate(Component):
             self.inputs[0].appendOutput(self)
         elif self.inputs[1] == None:
             self.inputs[1] = input
+            #todo make sure outputs exists
             self.inputs[1].appendOutput(self)
 
         else:
