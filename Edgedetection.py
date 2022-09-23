@@ -339,70 +339,48 @@ def edge_sections_identify(classified_pixels,port_pixels):
     return trivial_sections,port_sections, crossing_pixels_in_port_sections, last_gradients1
 
 
-
-
-
-
-
+def calcangle(vector_1, vector_2):
+    unit_vector_1 = vector_1 / np.linalg.norm(vector_1)
+    unit_vector_2 = vector_2 / np.linalg.norm(vector_2)
+    dot_product = np.dot(unit_vector_1, unit_vector_2)
+    angle = np.arccos(dot_product)
+    return  np.degrees(angle)
 
 
 def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, last_gradients):
     merged_sections = []
+    dir_offset = 4
 
     for crossing_pixel in crossing_pixels_in_port_sections:
-        for info_section in crossing_pixels_in_port_sections[crossing_pixel]:
+        sectiondirs = []
+        for cur_section in crossing_pixels_in_port_sections[crossing_pixel]:
 
             # if crossing pixel is already visited, then continue
-            if info_section[1] == 1:
-                continue
 
-            section = info_section[0]
+            dir_offset*=-1 # if crossing not allways at the end set to +/-
+
+            cur_section =cur_section[0]
             start_pixel = crossing_pixel
+            end_pixel = cur_section[dir_offset]
+            section_dir = end_pixel-start_pixel
+            sectiondirs.append((cur_section,section_dir))
 
-            flag_found_section = False
-            iteration = 0
+        print(section_dir)
+        # TODO: only for upper half of distance matrix
+        # for i in range(len(sectiondirs)):
+        #     for j in range(i,len(sectiondirs)):
 
-            while not flag_found_section:
-
-                crossing_section_direction = get_crossing_section_direction(classified_pixels, start_pixel,
-                                                                            last_gradients[section[0]], section)
-
-                flag_found_section = merge_sections(crossing_pixels_in_port_sections, section,
-                                                    crossing_section_direction, merged_sections)
-
-                if not flag_found_section:
-
-                    if len(crossing_section_direction) > 1:
-                        # start_back is a crossing pixel
-                        start_back = crossing_section_direction[-2]
-                    else:
-                        start_back = start_pixel
-
-                    # next is an edge pixel
-                    next = crossing_section_direction[-1]
-
-                    _section, _last_gradients, next = get_basic_section(next, classified_pixels, start_back)
-                    crossing_section_direction.extend(_section[1:])
-
-                    _crossing_section_direction = get_crossing_section_direction(classified_pixels, _section[-1],
-                                                                                 last_gradients[section[0]], _section)
-                    crossing_section = crossing_section_direction + _crossing_section_direction
-
-                    flag_found_section = merge_sections(crossing_pixels_in_port_sections, section, crossing_section,
-                                                        merged_sections)
-
-                    if not flag_found_section:
-                        # start pixel is a crossing pixel
-                        start_pixel = crossing_section[-2]
-                        section = section + crossing_section
-
-                    # if iteration == 1:
-                    #	_last_gradients.clear()
-                    #	del _last_gradients
-                    # else:
-                    last_gradients[section[0]].extend(_last_gradients)
-
-                iteration += 1
+        for first_section in sectiondirs:
+            for other_section in sectiondirs:
+                if other_section==first_section:
+                    continue
+                #calc angle between sections:
+                angle = calcangle(first_section[1],other_section[1])
+                #todo sort instead of limit
+                # evey edge with at least one other edge
+                if angle>160:
+                    pass
+                    #todo: merge at matching ends
 
     return merged_sections
 
