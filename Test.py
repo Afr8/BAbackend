@@ -20,9 +20,15 @@ if __name__ == '__main__':
     # Input2.switch()
     # print(Output.getValue())
     # boxes = np.zeros((7,5))
-    # boxes[1] = [2, 3,1, 1,2]
+    #boxes= [[1,2],[3,4],[5,6],[7,8]]
     # print(boxes)
+    #boxes = np.array(boxes)
+    arr = {}
+    arr
 
-    elements[]
-    el
+    print(min(boxes[:,0]))
+
+
+
+
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
