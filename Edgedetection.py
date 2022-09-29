@@ -407,11 +407,8 @@ def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, last
     return merged_sections
 
 def merge_crossingpixels(crossing_pixels_in_port_sections,classified_pixels):
-    print("X")
     crossing_pixels_in_port_sectionsf = crossing_pixels_in_port_sections.copy()
     for crossing_pixel in crossing_pixels_in_port_sectionsf:
-        print("D")
-
         crossing_pixels_in_range = []
         x,y = crossing_pixel
         for i in range(0, 5):
