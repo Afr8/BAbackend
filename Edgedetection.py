@@ -21,8 +21,9 @@ def start():
     skel= drawedges(pre,boxes)
     classified_pixels, port_pixels= getclassifiedpixels(skel)
     trivial_sections,port_sections, crossing_pixels_in_port_sections, last_gradients1= edge_sections_identify(classified_pixels, port_pixels)
-    crossing_pixels_in_port_sections= merge_crossingpixels(crossing_pixels_in_port_sections,classified_pixels)
-    merged_sections = traversal_subphase1(classified_pixels, crossing_pixels_in_port_sections, last_gradients1)
+    crossing_pixels_in_port_sections= merge_crossingpixels1(crossing_pixels_in_port_sections,classified_pixels)
+
+    merged_sections = traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, last_gradients1)
     edge_sections = trivial_sections + merged_sections
     connections = connectNodes(edge_sections, boxes)
     elements = build(boxes,connections, image_np)
@@ -370,13 +371,76 @@ def calcangle(vector_1, vector_2):
     return  np.degrees(angle)
 
 
+def find_missing(crossing_pixel, sections, classified_pixels):
+    radius = 2
+    for s in sections:
+        s[0][0]= np.array(s[0][0])
+    #todo radius kann außerhalb des bildes enden
+    for i in range(-radius,+radius):
+        for j in range(-radius, +radius):
+            if i ==0 and j==0:
+                continue
+            currentpos= (crossing_pixel[0]+i, crossing_pixel[1]+j)
+            in_sections = False
+            if classified_pixels[currentpos]>0 and not any([np.any(np.all(np.array(currentpos) == s[0], axis=1)) for s in sections]):
+                back = currentpos
+                #todo find pixel with value 2 around back pixel that is not inside one of the known sections
+                next = (0,0) #todo find
+                section = get_basic_section2(next,classified_pixels,back)
+                return section
+    return None
+
+#todo replace old get_basic_section
+def get_basic_section2(start, classified_pixels, back):
+    delta = np.array([0, 0])
+    section = []
+    section.append(start)
+    x, y = start
+    neighbor = None
+    neighbor_value = -float('inf')
+
+    for i in range(0, 3):
+        for j in range(0, 3):
+            if (i != 1 or j != 1) and (x + i - 1 != back[0] or y + j - 1 != back[1])  and (classified_pixels[x + i - 1, y + j - 1] > neighbor_value):
+                neighbor = np.array([x + i - 1, y + j - 1])
+                neighbor_value = classified_pixels[x + i - 1, y + j - 1]
+
+    next = neighbor
+    next_value = neighbor_value
+    delta = np.subtract(next, start)
+
+    while next_value == 2:  # edge pixel
+        section.append(next)
+        neighbor = None
+        neighbor_value = -float('inf')
+        x, y = next
+        for i in range(0, 3):
+            for j in range(0, 3):
+                if (i != 1 or j != 1) and (i != 1 - delta[0] or j != 1 - delta[1]) and (
+                        classified_pixels[x + i - 1, y + j - 1] > neighbor_value):
+                    neighbor = np.array([x + i - 1, y + j - 1])
+                    neighbor_value = classified_pixels[x + i - 1, y + j - 1]
+        next_value = neighbor_value
+        delta = np.subtract(neighbor, next)
+        next = neighbor
+    return section
+
+
 def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, last_gradients):
     merged_sections = []
     dir_offset = 4
 
-    for crossing_pixel in crossing_pixels_in_port_sections:
+    for (crossing_pixel, sections) in crossing_pixels_in_port_sections.items():
+
+        found = find_missing(crossing_pixel, sections, classified_pixels)
+        if not found is None:
+            pass
+            #todo check found part of allready merged_sections
+            #   replace found by merged
+            #   zu crossing_pixels_in_port_sections hinzufügen
+            #   beachte nach weiter mergen nicht neu zu mergedsection hinzufügen sondern bereits gemeregdte section anpassen
         sectiondirs = []
-        for cur_section in crossing_pixels_in_port_sections[crossing_pixel]:
+        for cur_section in sections:
 
             # if crossing pixel is already visited, then continue
 
@@ -455,16 +519,52 @@ def merge_crossingpixels(crossing_pixels_in_port_sections,classified_pixels):
 
     return crossing_pixels_in_port_sections
 
+def euclid_tuple(t1,t2):
+    return np.linalg.norm(np.array(tuple(map(lambda i, j: i - j, t1, t2))))
+def merge_crossingpixels1(crossing_pixels_in_port_sections,classified_pixels):
+    clusters =[[c] for c in crossing_pixels_in_port_sections.items()]
+    merge_happened=True
+    new_crossing_pixels_in_port_sections={}
+    while merge_happened:
+        merge_happened = try_to_merge(clusters)
+    for c in clusters:
+        #find center superior 1-liner
+        center = tuple(np.round(np.array([p[0]for p in c]).mean(axis=0)).astype(int))
+        new_sections =[]
+        for cp in c :
+            new_sections+=cp[1]
+        new_crossing_pixels_in_port_sections[center]=new_sections
+    return new_crossing_pixels_in_port_sections
+
+
+
+def try_to_merge( clusters):
+    thresh = 3
+    for cluster in clusters:
+        for crossing_pixel in cluster:
+            for other_cluster in clusters:
+                if (other_cluster == cluster):
+                    continue
+                for other_crossing_pixel in other_cluster:
+                    if (euclid_tuple(crossing_pixel[0], other_crossing_pixel[0]) < thresh):
+                        cluster += other_cluster
+                        clusters.remove(other_cluster)
+                        return True
+    return False
+
+
+
+
 def addmissing_sections(crossing_pixels_in_port_sections,classified_pixels):
     for crossing_pixel in crossing_pixels_in_port_sections:
         x,y = crossing_pixel
         for i in range(0, 5):
             for j in range(0, 5):
                 z = [x + i - 2, y + j - 2]
-                if (i != 2 or j != 2) and (not classified_pixels[x + i - 2, y + j - 2] == 0 ):
+                if (i != 2 or j != 2) and classified_pixels[x + i - 2, y + j - 2] != 0 :
                     found = False
                     for cpl in crossing_pixels_in_port_sections[crossing_pixel]:
-                        if np.array_equal(cpl[0][-2], np.array([x + i - 2, y + j - 2])) or np.array_equal(cpl[0][-3], np.array([x + i - 2, y + j - 2])) or (x + i - 2, y + j - 2) == cpl[0][0] :
+                        if np.array_equal(cpl[0][-2], np.array([x + i - 2, y + j - 2])) or np.array_equal(cpl[0][-1], np.array([x + i - 2, y + j - 2])) or (x + i - 2, y + j - 2) == cpl[0][0] :
                                found = True
                     if not found:
                         print(str((x + i - 2, y + j - 2)))
