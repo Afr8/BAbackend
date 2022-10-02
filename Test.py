@@ -26,7 +26,7 @@ if __name__ == '__main__':
     arr = {}
     arr
 
-    print(min(boxes[:,0]))
+    #print(min(boxes[:,0]))
 
 
 
