@@ -3,8 +3,7 @@ from circular_list import *
 import cv2
 import pickle
 import copy
-import math
-from matplotlib import pyplot as plt
+
 import os
 from collections import Counter
 import morphology
@@ -14,7 +13,7 @@ import Gates
 def start():
     global IMAGE_NAME
     global IMAGE_PATH
-    IMAGE_NAME = "1ea9849f-4cfe-4fa6-acb8-a8acd30d2d89"
+    IMAGE_NAME = "98d585a4-e318-4d6d-98c0-8a2226abe9d4"
     IMAGE_PATH = os.path.join("images", IMAGE_NAME)
     detections, image_np = load(IMAGE_NAME, IMAGE_PATH)
     boxes, imageblack, box_pixel = drawboxes(detections, image_np)
@@ -24,11 +23,16 @@ def start():
     trivial_sections, port_sections, crossing_pixels_in_port_sections, last_gradients1 = edge_sections_identify(
         classified_pixels, port_pixels)
     crossing_pixels_in_port_sections = merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels)
-
     merged_sections = traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port_pixels)
     edge_sections = trivial_sections + merged_sections
+    classified_pixelsa = copy.deepcopy(classified_pixels)
+    for a in edge_sections:
+        for b in a:
+            classified_pixelsa[b[0], b[1]] = 10
+        classified_pixelsa = copy.deepcopy(classified_pixels)
     connections = connectNodes(edge_sections, boxes)
     elements = build(boxes, connections, image_np)
+    return elements
     print("Done")
 
 
@@ -173,56 +177,17 @@ def preprocessing(imageblack):
     return img2
 
 
-def drawedges2(img2, boxes):
-    Kanten = np.copy(img2)
-    for q in boxes:
-        Kanten[int(q[0]):int(q[2]), int(q[1]):int(q[3])] = (0, 0, 0)
-    A = np.copy(Kanten) / 255
-    # A = morphology.zhang_and_suen_binary_thinning(A)
-    for x in range(1, Kanten.shape[0] - 1):
-        for y in range(1, Kanten.shape[1] - 1):
-
-            if A[x, y, 0] == 1:
-
-                d_1 = (x > 2) and (A[x - 2, y - 1, 0] == 0 or A[x - 2, y, 0] == 1 or A[x - 1, y - 1, 0] == 1)
-                d_2 = (y > 2) and (A[x + 1, y - 2, 0] == 0 or A[x, y - 2, 0] == 1 or A[x + 1, y - 1, 0] == 1)
-                d_3 = (y < Kanten.shape[1] - 2) and (
-                        A[x + 2, y, 0] == 0 or A[x + 2, y - 1, 0] == 1 or A[x + 1, y - 1, 0] == 1)
-                d_4 = (y < Kanten.shape[1] - 2) and (
-                        A[x - 1, y + 2, 0] == 0 or A[x, y + 2, 0] == 1 or A[x - 1, y + 1, 0] == 1)
-
-                if A[x - 1, y + 1, 0] == 1 and (A[x - 1, y, 0] == 1 and d_1):
-                    A[x - 1, y, 0] = 0
-                    A[x - 1, y, 1] = 0
-                    A[x - 1, y, 2] = 0
-                if A[x - 1, y - 1, 0] == 1 and (A[x, y - 1, 0] == 1 and d_2):
-                    A[x, y - 1, 0] = 0
-                    A[x, y - 1, 1] = 0
-                    A[x, y - 1, 2] = 0
-                if A[x + 1, y - 1, 0] == 1 and (A[x + 1, y, 0] == 1 and d_3):
-                    A[x + 1, y, 0] = 0
-                    A[x + 1, y, 1] = 0
-                    A[x + 1, y, 2] = 0
-                if A[x + 1, y + 1, 0] == 1 and (A[x, y + 1, 0] == 1 and d_4):
-                    A[x, y + 1, 0] = 0
-                    A[x, y + 1, 1] = 0
-                    A[x, y + 1, 2] = 0
-
-    skel = A
-    skel = skel * 255
-    cv2.imwrite(os.path.join('images' + "/" + IMAGE_NAME + "/", IMAGE_NAME + '_skel' + '.jpg'), skel)
-    return skel
-
 
 def drawedges(img2, boxes):
     Kanten = np.copy(img2)
+
     for q in boxes:
         Kanten[int(q[0]):int(q[2]), int(q[1]):int(q[3])] = (0, 0, 0)
     A = np.copy(Kanten) / 255
-    # A = morphology.zhang_and_suen_binary_thinning(A)
+    A = morphology.zhang_and_suen_binary_thinning(A)
+
     for x in range(1, Kanten.shape[0] - 1):
         for y in range(1, Kanten.shape[1] - 1):
-
             if A[x, y, 0] == 1:
 
                 d_1 = (x > 2) and (A[x - 2, y - 1, 0] == 0 or A[x - 2, y, 0] == 1 or A[x - 1, y - 1, 0] == 1)
@@ -253,12 +218,8 @@ def drawedges(img2, boxes):
 
 
     skel = skel * 255
-    # Todo Wichtig entfernen
-    # Todo Wichtig entfernen
-    # Todo Wichtig entfernen
-    # Todo Wichtig entfernen
 
-    skel[458, 603] = [255.0, 255.0, 255.0]
+
     cv2.imwrite(os.path.join('images' + "/" + IMAGE_NAME + "/", IMAGE_NAME + '_skel' + '.jpg'), skel)
     return skel
 
@@ -397,10 +358,9 @@ def find_missing2(crossing_pixel, sections, classified_pixels):
                         if classified_pixels[nextpos] > 0 and not any(
                                 [np.any(np.all(np.array(nextpos) == s[0], axis=1)) for s in sections]):
                             next = nextpos
-                # todo find pixel with value 2 around back pixel that is not inside one of the known sections
-                # todo find
+
                 section = [np.array(crossing_pixel)]
-                section +=get_basic_section2(next, classified_pixels, back)
+                section += get_basic_section2(next, classified_pixels, back)
                 return section
     return None
 
@@ -431,12 +391,7 @@ def find_missing(crossing_pixel, sections, classified_pixels):
                             section +=get_basic_section2(next, classified_pixels, back)
                             return section
                             #foundnext = True
-                # todo find pixel with value 2 around back pixel that is not inside one of the known sections
-                # todo find
-                #     if foundnext:
-                #         section = [np.array(crossing_pixel)]
-                #         section +=get_basic_section2(next, classified_pixels, back)
-                #         return section
+
     return None
 
 
@@ -528,7 +483,6 @@ def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port
                     continue
                 angle.append([calcangle(first_section[1], other_section[1]), other_section[0]])
             angle.sort(key=lambda x: x[0], reverse=True)
-            #print(angle[0][0])
             #Todo check for Reverse
             skip_sections.append(angle[0][1])
             if np.array_equal(first_section[0][-1], np.array(crossing_pixel)):
@@ -556,66 +510,54 @@ def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port
             else:
                 print("ERORR Traversal subphase 0")
 
-    # for s1 in merged_sections:
-    #
-    #     for s2 in merged_sections:
-    #         print(str(s1[5]) + "     " +str(s2[5]))
-    #
-    #         if s1[1][1]==s2[1][1] and s1[1][0]==s2[1][0] and s1[5][1]==s2[5][1] and s1[5][0]==s2[5][0]:
-    #             continue
-    #         print("hahaha")
-
-    #skip = []
-    for _ in range(20):
-        for s1 in merged_sections:
-            # if s1 in skip:
+    for s1 in merged_sections:
+        # if s1 in skip:
+        #     continue
+        for s2 in merged_sections:
+            # if s2 in skip:
             #     continue
-            for s2 in merged_sections:
-                # if s2 in skip:
-                #     continue
-                classified_pixels2 = copy.deepcopy(classified_pixels)
-                for i in s2:
-                    classified_pixels2[i[0], i[1]] = 10
-                classified_pixels1 = copy.deepcopy(classified_pixels)
-                for i in s1:
-                    classified_pixels1[i[0], i[1]] = 10
-                if s1[1][1]==s2[1][1] and s1[1][0]==s2[1][0] and s1[5][1]==s2[5][1] and s1[5][0]==s2[5][0]:
-                    continue
-                if not ((s1[0][0],s1[0][1]) in port_pixels and (s1[-1][0],s1[-1][1]) in port_pixels):
-                    if not ((s2[0][0], s2[0][1]) in port_pixels and (s2[-1][0], s2[-1][1]) in port_pixels):
-                        if any(np.all(s1[-2] == s2, axis=1)):
-                            print("H1")
+            classified_pixels2 = copy.deepcopy(classified_pixels)
+            for i in s2:
+                classified_pixels2[i[0], i[1]] = 10
+            classified_pixels1 = copy.deepcopy(classified_pixels)
+            for i in s1:
+                classified_pixels1[i[0], i[1]] = 10
+            if s1[1][1]==s2[1][1] and s1[1][0] == s2[1][0] and s1[5][1]==s2[5][1] and s1[5][0]==s2[5][0]:
+                continue
+            if not ((s1[0][0],s1[0][1]) in port_pixels and (s1[-1][0],s1[-1][1]) in port_pixels):
+                if not ((s2[0][0], s2[0][1]) in port_pixels and (s2[-1][0], s2[-1][1]) in port_pixels):
+                    if any(np.all(s1[-2] == s2, axis=1)):
+                        print("H1")
 
-                            w1 = np.where(np.all(s1[-1] == s2, axis=1)== True)[0][0]
-                            w2 = np.where(np.all(s1[-5] == s2, axis=1)== True)[0][0]
-                            if w1 > w2:
-                                s3 = s2[np.where(np.all(s1[-1] == s2,axis = 1)== True)[0][0]:]
-                                s4 = s1 + s3
-                            else:
-                                s3 = s2[:np.where(np.all(s1[-1] == s2, axis=1) == True)[0][0]]
-                                # ToDo check revese auf fehler
-                                s3.reverse()
-                                s4 = s1 + s3
-
-
-                            classified_pixels3 = copy.deepcopy(classified_pixels)
-                            for i in s3:
-                                classified_pixels3[i[0], i[1]] = 10
-                            classified_pixels4 = copy.deepcopy(classified_pixels)
-                            for i in s4:
-                                classified_pixels4[i[0], i[1]] = 10
-
-
-                            # skip.append(s1)
-                            # skip.append(s2)
-                            merged_sections.remove(s1)
-                            merged_sections.remove(s2)
-                            merged_sections.append(s4)
-                            break
-                        elif any(np.all(s1[0] == s2, axis=1)):
-                            print("H2")
+                        w1 = np.where(np.all(s1[-1] == s2, axis=1)== True)[0][0]
+                        w2 = np.where(np.all(s1[-5] == s2, axis=1)== True)[0][0]
+                        if w1 > w2:
+                            s3 = s2[np.where(np.all(s1[-1] == s2,axis = 1)== True)[0][0]:]
+                            s4 = s1 + s3
                         else:
-                            print("H3")
+                            s3 = s2[:np.where(np.all(s1[-1] == s2, axis=1) == True)[0][0]]
+                            s3.reverse()
+                            s4 = s1 + s3
+
+
+                        classified_pixels3 = copy.deepcopy(classified_pixels)
+                        for i in s3:
+                            classified_pixels3[i[0], i[1]] = 10
+                        classified_pixels4 = copy.deepcopy(classified_pixels)
+                        for i in s4:
+                            classified_pixels4[i[0], i[1]] = 10
+
+
+                        # skip.append(s1)
+                        # skip.append(s2)
+                        merged_sections.remove(s1)
+                        merged_sections.remove(s2)
+                        merged_sections.append(s4)
+                        break
+                    elif any(np.all(s1[0] == s2, axis=1)):
+                        print("H2")
+                    else:
+                        print("H3")
 
 
 
@@ -653,13 +595,11 @@ def merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels):
                     continue
                 if not (x1, y1) in crossing_pixels_in_port_sections:
                     crossing_pixels_in_port_sections[(x1, y1)] = []
+                    classified_pixels[(x1, y1)] = 3
                 if cp == (x1, y1):
                     continue
                 for cpl in crossing_pixels_in_port_sections[cp]:
                     # Todo if cp immer am ende von CPL ist alles gut sonst ändern
-
-                    # todo check ob insert klapt
-                    #cpl[0].append(np.array([cp[0], cp[1]]))
                     cpl[0].append(np.array([x1, y1]))
                     crossing_pixels_in_port_sections[(x1, y1)].append(cpl)
                 crossing_pixels_in_port_sections.pop(cp)
@@ -679,9 +619,6 @@ def merge_crossingpixels1(crossing_pixels_in_port_sections, classified_pixels):
         merge_happened = try_to_merge(clusters)
     for c in clusters:
         # find center superior 1-liner
-        #todo fix center
-
-
         center = tuple(np.round(np.array([p[0] for p in c]).mean(axis=0)).astype(int))
         classified_pixels[center]=3
         new_sections = []
@@ -692,7 +629,7 @@ def merge_crossingpixels1(crossing_pixels_in_port_sections, classified_pixels):
 
             new_sections += cp[1]
         new_crossing_pixels_in_port_sections[center] = new_sections
-    print("F")
+
     return new_crossing_pixels_in_port_sections
 
 def euclid_tuple(t1, t2):
