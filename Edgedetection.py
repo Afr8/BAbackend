@@ -24,7 +24,7 @@ def start():
     classified_pixels, port_pixels = getclassifiedpixels(skel)
     trivial_sections, port_sections, crossing_pixels_in_port_sections, last_gradients1 = edge_sections_identify(
         classified_pixels, port_pixels)
-    crossing_pixels_in_port_sections = merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels)
+    crossing_pixels_in_port_sections = merge_crossingpixels1(crossing_pixels_in_port_sections, classified_pixels)
     merged_sections = traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port_pixels)
     edge_sections = trivial_sections + merged_sections
     classified_pixelsa = copy.deepcopy(classified_pixels)
@@ -668,18 +668,39 @@ def merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels):
     return crossing_pixels_in_port_sections
 
 
+def find_missing_cps(clustercps, p, classified_pixels):
+    toadd =[]
+    for i in range(-2,3):
+        for j in range(-2, 3):
+            new_pos =(p[0]+i,p[1]+j)
+            if new_pos in clustercps:
+                continue
+            if classified_pixels[new_pos]==3:
+                toadd.append(new_pos)
+    return toadd
+            # if clustercps[]
+
 
 
 def merge_crossingpixels1(crossing_pixels_in_port_sections, classified_pixels):
+    #todo to get all crossingpixels event those which are not connected to a section use eomthing like np.where(classified_pixels)==1
+    #   unite crossing_pixels_in_port_sections and found pixels to one set where some crossingpixels might have 0 sections attached
+    all_crossing_pixels= np.stack(np.where(classified_pixels==3), axis=1)
     clusters = [[c] for c in crossing_pixels_in_port_sections.items()]
     merge_happened = True
     new_crossing_pixels_in_port_sections = {}
     while merge_happened:
         merge_happened = try_to_merge(clusters)
     for c in clusters:
-        # find center superior 1-liner
-        center = tuple(np.round(np.array([p[0] for p in c]).mean(axis=0)).astype(int))
-        classified_pixels[center]=3
+        #todo this can be avoided by the above comment
+        clustercps = set([cp[0] for cp in c])
+        missing=set()
+        for p in clustercps:
+           missing.update(find_missing_cps(clustercps, p, classified_pixels))
+        clustercps.update(missing)
+        #----------------------------------
+        center = tuple(np.round(np.array(list(clustercps)).mean(axis=0)).astype(int))
+        classified_pixels[center] = 3
         new_sections = []
         for cp in c:
             for cpl in cp[1]:
