@@ -173,46 +173,7 @@ def zhang_and_suen_binary_thinning(A):
 			_A[x, y] = 0
 		del removed_points[:]
 
-	output = m_connectivity(_A)
+	output = _A
 
 	return output
 
-
-"""
-Input:  Set of binary pixels A.
-Output: Result of m-connectivity of A.
-"""
-def m_connectivity(A):
-
-
-	for x in range(1, A.shape[0] - 1):
-		for y in range(1, A.shape[1] - 1):
-
-			if A[x, y, 0] == 1:
-
-				d_1 = (x > 2) and (A[x - 2, y - 1, 0] == 0 or A[x - 2, y, 0] == 1 or A[x - 1, y - 1, 0] == 1)
-				d_2 = (y > 2) and (A[x + 1, y - 2, 0] == 0 or A[x, y - 2, 0] == 1 or A[x + 1, y - 1, 0] == 1)
-				d_3 = (y < A.shape[1] - 2) and (
-						A[x + 2, y, 0] == 0 or A[x + 2, y - 1, 0] == 1 or A[x + 1, y - 1, 0] == 1)
-				d_4 = (y < A.shape[1] - 2) and (
-						A[x - 1, y + 2, 0] == 0 or A[x, y + 2, 0] == 1 or A[x - 1, y + 1, 0] == 1)
-
-				if A[x - 1, y + 1, 0] == 1 and (A[x - 1, y, 0] == 1 and d_1):
-					A[x - 1, y, 0] = 0
-					A[x - 1, y, 1] = 0
-					A[x - 1, y, 2] = 0
-				if A[x - 1, y - 1, 0] == 1 and (A[x, y - 1, 0] == 1 and d_2):
-					A[x, y - 1, 0] = 0
-					A[x, y - 1, 1] = 0
-					A[x, y - 1, 2] = 0
-				if A[x + 1, y - 1, 0] == 1 and (A[x + 1, y, 0] == 1 and d_3):
-					A[x + 1, y, 0] = 0
-					A[x + 1, y, 1] = 0
-					A[x + 1, y, 2] = 0
-				if A[x + 1, y + 1, 0] == 1 and (A[x, y + 1, 0] == 1 and d_4):
-					A[x, y + 1, 0] = 0
-					A[x, y + 1, 1] = 0
-					A[x, y + 1, 2] = 0
-
-
-	return A

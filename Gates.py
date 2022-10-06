@@ -112,8 +112,10 @@ class Input(Component):
     def switch(self):
         self.value = not self.value
         self.update()
-
-
+        return not self.value
+    def setFalse(self):
+        self.value = False
+        self.update()
 
 class Output(Gate):
 

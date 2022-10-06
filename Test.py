@@ -5,7 +5,7 @@ import numpy as np
 
 # Press Umschalt+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
+import math
 
 
 # Press the green button in the gutter to run the script.
@@ -23,11 +23,6 @@ if __name__ == '__main__':
     #boxes= [[1,2],[3,4],[5,6],[7,8]]
     # print(boxes)
     #boxes = np.array(boxes)
-    arr = {}
-    arr
-
-    #print(min(boxes[:,0]))
-
 
 
 

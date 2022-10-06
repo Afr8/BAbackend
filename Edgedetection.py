@@ -1,9 +1,11 @@
+import math
+
 import numpy as np
 from circular_list import *
 import cv2
 import pickle
 import copy
-
+import math
 import os
 from collections import Counter
 import morphology
@@ -13,7 +15,7 @@ import Gates
 def start():
     global IMAGE_NAME
     global IMAGE_PATH
-    IMAGE_NAME = "98d585a4-e318-4d6d-98c0-8a2226abe9d4"
+    IMAGE_NAME = "1ea9849f-4cfe-4fa6-acb8-a8acd30d2d89"
     IMAGE_PATH = os.path.join("images", IMAGE_NAME)
     detections, image_np = load(IMAGE_NAME, IMAGE_PATH)
     boxes, imageblack, box_pixel = drawboxes(detections, image_np)
@@ -31,10 +33,74 @@ def start():
             classified_pixelsa[b[0], b[1]] = 10
         classified_pixelsa = copy.deepcopy(classified_pixels)
     connections = connectNodes(edge_sections, boxes)
-    elements = build(boxes, connections, image_np)
+    elements = build(boxes, connections)
+    solve(elements, boxes, image_np)
+    Tabelle(elements)
     return elements
-    print("Done")
 
+def Tabelle(elements):
+    inputelements = []
+    outputelements = []
+
+    for element in elements:
+        if type(element[0]) == Gates.Input:
+            element[0].setFalse()
+            inputelements.append(element)
+        elif type(element[0]) == Gates.Output:
+            outputelements.append(element)
+    for _ in range(0,len(inputelements)):
+        print("+ - - - - - ",end="")
+    print(end="+ - ")
+    for _ in range(0,len(outputelements)):
+        print("+ - - - - - ", end="")
+    print("+")
+    print("|", end="")
+    for element in inputelements:
+        print("\tIn: " + str(element[1]) , end="\t|")
+    print("\t|", end="")
+    for element in outputelements:
+        print("\tOut:" + str(element[1]), end="\t|")
+    print("")
+    for _ in range(0,len(inputelements)):
+        print("+ - - - - - ",end="")
+    print(end="+ - ")
+    for _ in range(0,len(outputelements)):
+        print("+ - - - - - ", end="")
+    print("+")
+    print("|", end="")
+    for element in inputelements:
+        print("\t" + str(element[0].getValue()), end="\t|")
+
+    print("\t|", end="")
+    for element in outputelements:
+        print("\t" + str(element[0].getValue()), end="\t|")
+    print("")
+    for _ in range(1,int(math.pow(2,len(inputelements)))):
+        for _ in range(0, len(inputelements)):
+            print("+ - - - - - ", end="")
+        print(end="+ - ")
+        for _ in range(0, len(outputelements)):
+            print("+ - - - - - ", end="")
+        print("+")
+        scounter = 0
+        switched = True
+        while switched and scounter < len(inputelements):
+            switched= inputelements[scounter][0].switch()
+            scounter +=1
+        print("|",end= "")
+        for element in inputelements:
+            print("\t"+str(element[0].getValue()), end="\t|")
+
+        print("\t|",end= "")
+        for element in outputelements:
+            print("\t"+str(element[0].getValue()), end="\t|")
+        print("")
+    for _ in range(0, len(inputelements)):
+        print("+ - - - - - ", end="")
+    print(end="+ - ")
+    for _ in range(0, len(outputelements)):
+        print("+ - - - - - ", end="")
+    print("+")
 
 def connectNodes(edge_sections, boxes):
     connections = {}
@@ -64,55 +130,54 @@ def connectNodes(edge_sections, boxes):
     return connections
 
 
-def build(boxes, connections, image_np):
+def build(boxes, connections):
     elements = []
     alt = 0
     for box in boxes:
 
         if box[4] == 0:
             # print("switch_True")
-            elements.append(Gates.Input(True))
+            elements.append([Gates.Input(True),alt])
         elif box[4] == 1:
             # print("switch_False")
-            elements.append(Gates.Input())
+            elements.append([Gates.Input(),alt])
         elif box[4] == 2:
             # print("and")
-            elements.append(Gates.And())
+            elements.append([Gates.And(),alt])
         elif box[4] == 3:
             # print("or")
-            elements.append(Gates.Or())
+            elements.append([Gates.Or(),alt])
         elif box[4] == 4:
             # print("nand")
-            elements.append(Gates.Nand())
+            elements.append([Gates.Nand(),alt])
             # elements[-1].addInput(alt)
         elif box[4] == 5:
             # print("nor")
-            elements.append(Gates.Nor())
+            elements.append([Gates.Nor(),alt])
         elif box[4] == 6:
             # print("not")
-            elements.append(Gates.Not())
+            elements.append([Gates.Not(),alt])
         elif box[4] == 7:
             # print("bulb")
-            elements.append(Gates.Output())
+            elements.append([Gates.Output(),alt])
         alt += 1
-    print("con")
-
     for connection in connections.values():
         print("Connect: " + str(connection[1][0]) + " mit " + str(connection[1][1]))
-        if not type(elements[connection[1][1]]) == Gates.Input:
-            elements[connection[1][1]].addInput(elements[connection[1][0]])
-
+        if not type(elements[connection[1][1]][0]) == Gates.Input:
+            elements[connection[1][1]][0].addInput(elements[connection[1][0]][0])
+    return elements
+def solve(elements,boxes, image_np):
     for element in elements:
-        if type(element) == Gates.Input:
-            element.update()
+        if type(element[0]) == Gates.Input:
+            element[0].update()
     print("Lösung")
     count = 0
     for element in elements:
-        if type(element) == Gates.Output:
-            print(element.getValue())
+        if type(element[0]) == Gates.Output:
+            print("Output " +str(element[1]) +": " + str(element[0].getValue()))
             cv2.putText(
                 image_np,  # numpy array on which text is written
-                str(element.getValue()),  # text
+                str(element[0].getValue()),  # text
                 (int((boxes[count][1] + boxes[count][3]) / 2 - 20), int((boxes[count][0] + boxes[count][2]) / 2 - 40)),
                 # position at which writing has to start
                 cv2.FONT_HERSHEY_SIMPLEX,  # font family
@@ -121,8 +186,6 @@ def build(boxes, connections, image_np):
                 3)  # font stroke
         count += 1
     cv2.imwrite(os.path.join('images' + "/" + IMAGE_NAME + "/", IMAGE_NAME + '_Solution' + '.jpg'), image_np)
-    return elements
-
 
 def load(IMAGE_NAME, IMAGE_PATH):
     with open("images/" + IMAGE_NAME + "/" + IMAGE_NAME + "_detections.pickle", "rb") as file:
@@ -218,7 +281,7 @@ def drawedges(img2, boxes):
 
 
     skel = skel * 255
-
+    #skel[294,973]= [255.0,255.0,255.0]
 
     cv2.imwrite(os.path.join('images' + "/" + IMAGE_NAME + "/", IMAGE_NAME + '_skel' + '.jpg'), skel)
     return skel
@@ -360,7 +423,7 @@ def find_missing2(crossing_pixel, sections, classified_pixels):
                             next = nextpos
 
                 section = [np.array(crossing_pixel)]
-                section += get_basic_section2(next, classified_pixels, back)
+                section += get_basic_section(next, classified_pixels, back)
                 return section
     return None
 
@@ -388,7 +451,7 @@ def find_missing(crossing_pixel, sections, classified_pixels):
                                 [np.any(np.all(np.array(nextpos) == s[0], axis=1)) for s in sections]):
                             next = nextpos
                             section = [np.array(crossing_pixel)]
-                            section +=get_basic_section2(next, classified_pixels, back)
+                            section +=get_basic_section(next, classified_pixels, back)
                             return section
                             #foundnext = True
 
@@ -397,7 +460,7 @@ def find_missing(crossing_pixel, sections, classified_pixels):
 
 
 # todo replace old get_basic_section
-def get_basic_section2(start, classified_pixels, back):
+def get_basic_section(start, classified_pixels, back):
     delta = np.array([0, 0])
     section = []
     section.append(np.array(back))
@@ -527,8 +590,6 @@ def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port
             if not ((s1[0][0],s1[0][1]) in port_pixels and (s1[-1][0],s1[-1][1]) in port_pixels):
                 if not ((s2[0][0], s2[0][1]) in port_pixels and (s2[-1][0], s2[-1][1]) in port_pixels):
                     if any(np.all(s1[-2] == s2, axis=1)):
-                        print("H1")
-
                         w1 = np.where(np.all(s1[-1] == s2, axis=1)== True)[0][0]
                         w2 = np.where(np.all(s1[-5] == s2, axis=1)== True)[0][0]
                         if w1 > w2:
@@ -585,10 +646,8 @@ def merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels):
             maxy = int(max(cpirnp[:, 1]))
             x1 = int((minx + maxx) / 2)
             y1 = int((miny + maxy) / 2)
-            print(classified_pixels[x1, y1])
             if classified_pixels[x1, y1] == 0:
                 classified_pixels[(x1, y1)] = 3
-                print("FUCK FUCK FUCK Noch nicht implementiert")
             for cp in crossing_pixels_in_range:
                 if not cp in crossing_pixels_in_port_sections:
                     classified_pixels[cp] = 3
@@ -652,296 +711,5 @@ def try_to_merge(clusters):
     return False
 
 
-def addmissing_sections(crossing_pixels_in_port_sections, classified_pixels):
-    for crossing_pixel in crossing_pixels_in_port_sections:
-        x, y = crossing_pixel
-        for i in range(0, 5):
-            for j in range(0, 5):
-                z = [x + i - 2, y + j - 2]
-                if (i != 2 or j != 2) and classified_pixels[x + i - 2, y + j - 2] != 0:
-                    found = False
-                    for cpl in crossing_pixels_in_port_sections[crossing_pixel]:
-                        if np.array_equal(cpl[0][-2], np.array([x + i - 2, y + j - 2])) or np.array_equal(cpl[0][-1],
-                                                                                                          np.array([
-                                                                                                                       x + i - 2,
-                                                                                                                       y + j - 2])) or (
-                        x + i - 2, y + j - 2) == cpl[0][0]:
-                            found = True
-                    if not found:
-                        print(str((x + i - 2, y + j - 2)))
 
 
-def merge_sections(crossing_pixels_in_port_sections, section, crossing_section, merged_sections):
-    if len(crossing_section) > 1:
-        # back is a crossing pixel
-        back = crossing_section[-2]
-    else:
-        back = section[-1]
-
-    key_back = (back[0], back[1])
-
-    # next is an edge pixel
-    next = crossing_section[-1]
-
-    if not key_back in crossing_pixels_in_port_sections.keys():
-        return False
-
-    for info_section in crossing_pixels_in_port_sections[key_back]:
-        _section = info_section[0]
-
-        if next[0] == _section[-2][0] and next[1] == _section[-2][1]:
-            merged_sections.append(section + crossing_section + _section[::-1][1:])
-
-            # mark back (crossing pixel) as already visited
-            info_section[1] = 1
-
-            # print ((section[0][0], section[0][1]), (crossing_section[0][0], crossing_section[0][1]), (crossing_section[-1][0], crossing_section[-1][1]), (_section[::-1][-1][0], _section[::-1][-1][1])), next
-
-            return True
-
-    return False
-
-
-def get_basic_section(start, classified_pixels, start_back=None):
-    # 'gradient' vector
-    delta = np.array([0, 0])
-
-    last_gradients = Circular_list()
-
-    section = []
-    section.append(start)
-
-    x, y = start
-    next, next_value = get_max_neighbor(classified_pixels, x, y, start_back)
-    delta = np.subtract(next, start)
-
-    while next_value == 2:  # edge pixel
-
-        last_gradients.insert((delta[0], delta[1]))
-        section.append(next)
-
-        next = np.add(next, delta)
-        next_value = classified_pixels[next[0], next[1]]
-
-        if next_value < 2:  # blank pixel or miscellaneous pixel
-            last = section[-1]  # get last element added in section
-            x, y = last
-            back = np.subtract(last, delta)
-
-            # get max value in the neighborhood, unless the 'back'
-            next, next_value = get_max_neighbor(classified_pixels, x, y, back)
-
-            delta = np.subtract(next, last)
-
-    last_gradients.insert((delta[0], delta[1]))
-    section.append(next)
-    last_element = next
-
-    return section, last_gradients, last_element
-
-
-def get_max_neighbor(classified_pixels, x, y, back=None):
-    neighbor = None
-    neighbor_value = -float('inf')
-
-    for i in range(0, 3):
-        for j in range(0, 3):
-
-            if (back is None or (x + i - 1 != back[0] or y + j - 1 != back[1])) and (i != 1 or j != 1) and (
-                    classified_pixels[x + i - 1, y + j - 1] > neighbor_value):
-                neighbor = np.array([x + i - 1, y + j - 1])
-                neighbor_value = classified_pixels[x + i - 1, y + j - 1]
-
-    return neighbor, neighbor_value
-
-
-def get_crossing_section_direction(classified_pixels, crossing_pixel, last_gradients, section):
-    # counter gradients frequency
-    cnt_gradient = Counter(last_gradients.get_list())
-    # count in list
-    grads = cnt_gradient.most_common()
-
-    crossing_section_direction = []
-
-    next = crossing_pixel
-    next_value = classified_pixels[next[0], next[1]]
-
-    # back is a edge pixel
-    back = section[-2][0], section[-2][1]
-
-    # avoid local minima
-    iterations = 0
-    loop_grads = Circular_list(3)
-    excluded_grad = None
-
-    while next_value != 2:  # edge pixel
-
-        aux_value = 0
-        i = 0
-
-        if iterations == 3:
-            list_loop_grads = loop_grads.get_list()
-            excluded_grad = list_loop_grads[1]
-            crossing_section_direction[:] = []
-            iterations = 0
-
-        while aux_value < 2 and i < len(grads):  # blank pixel or miscellaneous and i < len
-
-            if grads[i][0] == excluded_grad:
-                continue
-
-            delta = grads[i][0]
-            aux = np.add(next, delta)
-
-            if aux[0] == back[0] and aux[1] == back[1]:  # back[0] >= 0 and back[1] >= 0 and
-                aux_value = 0
-            else:
-                aux_value = classified_pixels[aux[0], aux[1]]
-
-            i += 1
-
-        if aux_value < 2 and i == len(grads):
-            delta = get_gradient(classified_pixels, back, next, grads, excluded_grad)
-            loop_grads.insert(delta)
-            back = next[0], next[1]
-            next = np.add(next, delta)
-            next_value = classified_pixels[next[0], next[1]]
-
-        else:
-            loop_grads.insert(delta)
-            back = next[0], next[1]
-            next = aux
-            next_value = aux_value
-
-        crossing_section_direction.append(next)
-        iterations += 1
-
-    return crossing_section_direction
-
-
-def get_gradient(classified_pixels, back, current, common_grads, excluded_grad=None):
-    possible_grads = {(0, 1), (1, 0), (1, 1), (-1, 1), (-1, -1), (1, -1), (0, -1), (-1, 0)}
-    s_grads = [x[0] for x in common_grads]
-    possible_grads = possible_grads - set(s_grads)
-
-    if not excluded_grad is None:
-        possible_grads = possible_grads - {excluded_grad}
-
-    min_d = float('inf')
-    min_grad = None
-
-    for grad in possible_grads:
-        aux = np.add(current, grad)
-
-        sat_condition = (aux[0] != back[0] or aux[1] != back[1]) and (classified_pixels[aux[0], aux[1]] > 1)
-
-        d = distance_heuristic_grads(common_grads, possible_grads, grad)
-
-        if sat_condition and (d < min_d):
-            min_d = d
-            min_grad = grad
-
-    return min_grad
-
-
-def distance_heuristic_grads(common_grads, possible_grads, grad):
-    n = 0.0
-    average_common_grad = [0.0, 0.0]
-    # most_common_grad = grads[0][0]
-
-    for _grad in common_grads:
-        aux = [_grad[1] * z for z in _grad[0]]
-        average_common_grad = map(sum, zip(average_common_grad, aux))
-        n += _grad[1]
-
-    average_common_grad = [z / n for z in average_common_grad]
-
-    # determine weights to calculate distances
-    amount_non_zero_x = 0
-    amount_non_zero_y = 0
-
-    for _grad in common_grads:
-        if _grad[0][0] != 0:
-            amount_non_zero_x += _grad[1]
-        if _grad[0][1] != 0:
-            amount_non_zero_y += _grad[1]
-
-    total_non_zeros = amount_non_zero_x + amount_non_zero_y
-
-    alpha = (total_non_zeros - amount_non_zero_y)
-    betha = (total_non_zeros - amount_non_zero_x)
-
-    # print alpha, betha
-
-    d = weighted_euclidean_distance(average_common_grad, grad, alpha, betha)
-    # d = weighted_euclidean_distance(most_common_grad, grad, alpha, betha)
-    # print amount_non_zero_x, amount_non_zero_y, "alpha: ", alpha, "betha: ", betha, "distance: ", d
-
-    return d
-
-
-def weighted_euclidean_distance(grad1, grad2, alpha=1, betha=1):
-    [x, y] = [grad1[0] - grad2[0], grad1[1] - grad2[1]]
-    d = np.sqrt((alpha * (x ** 2)) + (betha * (y ** 2)))
-    return d
-
-
-def traversal_subphase1(classified_pixels, crossing_pixels_in_port_sections, last_gradients):
-    merged_sections = []
-
-    for crossing_pixel in crossing_pixels_in_port_sections:
-        for info_section in crossing_pixels_in_port_sections[crossing_pixel]:
-
-            # if crossing pixel is already visited, then continue
-            if info_section[1] == 1:
-                continue
-
-            section = info_section[0]
-            start_pixel = crossing_pixel
-
-            flag_found_section = False
-            iteration = 0
-
-            while not flag_found_section:
-
-                crossing_section_direction = get_crossing_section_direction(classified_pixels, start_pixel,
-                                                                            last_gradients[section[0]], section)
-
-                flag_found_section = merge_sections(crossing_pixels_in_port_sections, section,
-                                                    crossing_section_direction, merged_sections)
-
-                if not flag_found_section:
-
-                    if len(crossing_section_direction) > 1:
-                        # start_back is a crossing pixel
-                        start_back = crossing_section_direction[-2]
-                    else:
-                        start_back = start_pixel
-
-                    # next is an edge pixel
-                    next = crossing_section_direction[-1]
-
-                    _section, _last_gradients, next = get_basic_section(next, classified_pixels, start_back)
-                    crossing_section_direction.extend(_section[1:])
-
-                    _crossing_section_direction = get_crossing_section_direction(classified_pixels, _section[-1],
-                                                                                 last_gradients[section[0]], _section)
-                    crossing_section = crossing_section_direction + _crossing_section_direction
-
-                    flag_found_section = merge_sections(crossing_pixels_in_port_sections, section, crossing_section,
-                                                        merged_sections)
-
-                    if not flag_found_section:
-                        # start pixel is a crossing pixel
-                        start_pixel = crossing_section[-2]
-                        section = section + crossing_section
-
-                    # if iteration == 1:
-                    #	_last_gradients.clear()
-                    #	del _last_gradients
-                    # else:
-                    last_gradients[section[0]].extend(_last_gradients)
-
-                iteration += 1
-
-    return merged_sections
