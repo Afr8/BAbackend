@@ -23,7 +23,14 @@ if __name__ == '__main__':
     #boxes= [[1,2],[3,4],[5,6],[7,8]]
     # print(boxes)
     #boxes = np.array(boxes)
-
-
-
+    pixels = np.zeros((500,500))
+    #x,y = 20
+    radiust =2
+    pixels[(2,2)] = 1
+    for i in range(-radiust, +radiust + 1):
+        for j in range(-radiust, +radiust + 1):
+            if ( radiust > i and i > -radiust) and (radiust > j and j > -radiust):
+                continue
+            pixels[(i+2,j+2)] = 1
+    print("Done")
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

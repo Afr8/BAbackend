@@ -14,7 +14,8 @@ from circular_list import *
 def start():
     global IMAGE_NAME
     global IMAGE_PATH
-    IMAGE_NAME = "1ea9849f-4cfe-4fa6-acb8-a8acd30d2d89"
+    IMAGE_NAME = "0e49e5c8-2c3e-4c0e-90fc-da37e47711d4"
+    print(IMAGE_NAME)
     IMAGE_PATH = os.path.join("images", IMAGE_NAME)
     detections, image_np = load(IMAGE_NAME, IMAGE_PATH)
     boxes, imageblack, box_pixel = drawboxes(detections, image_np)
@@ -112,7 +113,7 @@ def connectNodes(edge_sections, boxes):
             c = 0
             for box in boxes:
 
-                if box[3] == section[0][1] and box[0] < section[0][0] and box[2] > section[0][0]:
+                if (box[3] == section[0][1] or box[3] + 1 == section[0][1]) and box[0] < section[0][0] and box[2] > section[0][0]:
                     connections[counter][1][0] = c
                 if box[1] == section[-1][1] + 1 and box[0] < section[-1][0] and box[2] > section[-1][0]:
                     connections[counter][1][1] = c
@@ -122,7 +123,7 @@ def connectNodes(edge_sections, boxes):
             c = 0
             for box in boxes:
 
-                if box[3] == section[-1][1] and box[0] < section[-1][0] and box[2] > section[-1][0]:
+                if (box[3] == section[-1][1] or box[3] + 1 == section[-1][1]) and box[0] < section[-1][0] and box[2] > section[-1][0]:
                     connections[counter][1][0] = c
                 if box[1] == section[0][1] + 1 and box[0] < section[0][0] and box[2] > section[0][0]:
                     connections[counter][1][1] = c
@@ -405,14 +406,17 @@ def find_missing2(crossing_pixel, sections, classified_pixels):
     for s in sections:
         s[0][0] = np.array(s[0][0])
     # todo radius kann außerhalb des bildes enden
-    for i in range(-radius, +radius + 1):
-        for j in range(-radius, +radius + 1):
-            if i == 0 and j == 0:
+    #while found
+
+
+    radiust = 3
+    for i in range(-radiust, +radiust + 1):
+        for j in range(-radiust, +radiust + 1):
+            if ( radiust > i and i > -radiust) and (radiust > j and j > -radiust):
                 continue
             currentpos = (crossing_pixel[0] + i, crossing_pixel[1] + j)
             in_sections = False
-            if classified_pixels[currentpos] > 0 and not any(
-                    [np.any(np.all(np.array(currentpos) == s[0], axis=1)) for s in sections]):
+            if classified_pixels[currentpos] == 3:
                 back = currentpos
                 radius2 = 1
                 for p in range(-radius2, +radius2 + 1):
@@ -420,13 +424,12 @@ def find_missing2(crossing_pixel, sections, classified_pixels):
                         if p == 0 and q == 0:
                             continue
                         nextpos = (currentpos[0] + p, currentpos[1] + q)
-                        if classified_pixels[nextpos] > 0 and not any(
+                        if classified_pixels[nextpos] == 2 and not any(
                                 [np.any(np.all(np.array(nextpos) == s[0], axis=1)) for s in sections]):
                             next = nextpos
-
-                section = [np.array(crossing_pixel)]
-                section += get_basic_section(next, classified_pixels, back)
-                return section
+                            section = [np.array(crossing_pixel)]
+                            section += get_basic_section(next, classified_pixels, back)
+                            return section
     return None
 
 
@@ -444,7 +447,6 @@ def find_missing(crossing_pixel, sections, classified_pixels):
             if classified_pixels[currentpos] == 3:
                 back = currentpos
                 radius2 = 1
-                # foundnext = False
                 for p in range(-radius2, +radius2 + 1):
                     for q in range(-radius2, +radius2 + 1):
                         if p == 0 and q == 0:
@@ -456,8 +458,6 @@ def find_missing(crossing_pixel, sections, classified_pixels):
                             section = [np.array(crossing_pixel)]
                             section += get_basic_section(next, classified_pixels, back)
                             return section
-                            # foundnext = True
-
     return None
 
 
@@ -504,16 +504,20 @@ def get_basic_section(start, classified_pixels, back):
 def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port_pixels):
     merged_sections = []
     dir_offset = 4
+    classified_pixelsf2 = copy.deepcopy(classified_pixels)
     anter = 0
     for (crossing_pixel, sections) in crossing_pixels_in_port_sections.items():
+        classified_pixelsf1 = copy.deepcopy(classified_pixels)
         anter += 1
         found = True
         while found:
-            found = find_missing(crossing_pixel, sections, classified_pixels)
+            found = find_missing2(crossing_pixel, sections, classified_pixels)
             if not found is None:
                 classified_pixelsf = copy.deepcopy(classified_pixels)
                 for i in found:
                     classified_pixelsf[i[0], i[1]] = 10
+                    classified_pixelsf1[i[0], i[1]] = 10
+                    classified_pixelsf2[i[0], i[1]] = 10
                 crossing_pixels_in_port_sections[crossing_pixel].append([found, 0])
                 found = True
             else:
@@ -531,18 +535,17 @@ def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port
             cur_section = cur_section[0]
             start_pixel = crossing_pixel
             if np.array_equal(cur_section[0], np.array(crossing_pixel)):
-                end_pixel = cur_section[4]
+                end_pixel = cur_section[-dir_offset]
             else:
                 end_pixel = cur_section[dir_offset]
             section_dir = end_pixel - start_pixel
             sectiondirs.append([cur_section, section_dir])
 
-        # print(section_dir)
+
         skip_sections = []
         for first_section in sectiondirs:
             angle = []
-            # if section_in_sections(first_section[0],skip_sections):
-            if first_section[0] in skip_sections:
+            if section_in_sections(first_section[0],skip_sections):
                 continue
             for other_section in sectiondirs:
                 if section_equal(first_section[0], other_section[0]):
@@ -575,51 +578,58 @@ def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port
                     print("ERORR Traversal subphase 2")
             else:
                 print("ERORR Traversal subphase 0")
-
-    for s1 in merged_sections:
-        # if s1 in skip:
-        #     continue
-        for s2 in merged_sections:
-            # if s2 in skip:
+    # ToDo While Loop
+    for _ in range(0,10):
+        for s1 in merged_sections:
+            # if s1 in skip:
             #     continue
-            classified_pixels2 = copy.deepcopy(classified_pixels)
-            for i in s2:
-                classified_pixels2[i[0], i[1]] = 10
-            classified_pixels1 = copy.deepcopy(classified_pixels)
-            for i in s1:
-                classified_pixels1[i[0], i[1]] = 10
-            if section_equal(s1, s2):
-                continue
-            if not ((s1[0][0], s1[0][1]) in port_pixels and (s1[-1][0], s1[-1][1]) in port_pixels):
-                if not ((s2[0][0], s2[0][1]) in port_pixels and (s2[-1][0], s2[-1][1]) in port_pixels):
-                    if any(np.all(s1[-2] == s2, axis=1)):
-                        w1 = np.where(np.all(s1[-1] == s2, axis=1) == True)[0][0]
-                        w2 = np.where(np.all(s1[-5] == s2, axis=1) == True)[0][0]
-                        if w1 > w2:
-                            s3 = s2[np.where(np.all(s1[-1] == s2, axis=1) == True)[0][0]:]
-                            s4 = s1 + s3
+            for s2 in merged_sections:
+                # if s2 in skip:
+                #     continue
+                classified_pixels2 = copy.deepcopy(classified_pixels)
+                for i in s2:
+                    classified_pixels2[i[0], i[1]] = 10
+                classified_pixels1 = copy.deepcopy(classified_pixels)
+                for i in s1:
+                    classified_pixels1[i[0], i[1]] = 10
+                if section_equal(s1, s2):
+                    continue
+                if not ((s1[0][0], s1[0][1]) in port_pixels and (s1[-1][0], s1[-1][1]) in port_pixels):
+                    if not ((s2[0][0], s2[0][1]) in port_pixels and (s2[-1][0], s2[-1][1]) in port_pixels):
+                        if any(np.all(s1[-1] == s2, axis=1)):
+                            w1 = np.where(np.all(s1[-1] == s2, axis=1) == True)[0][0]
+                            w2 = np.where(np.all(s1[-5] == s2, axis=1) == True)[0][0]
+                            if w1 > w2:
+                                s3 = s2[np.where(np.all(s1[-1] == s2, axis=1) == True)[0][0]:]
+                                s4 = s1 + s3
+                            else:
+                                s3 = s2[:np.where(np.all(s1[-1] == s2, axis=1) == True)[0][0]]
+                                s3.reverse()
+                                s4 = s1 + s3
+
+                            classified_pixels3 = copy.deepcopy(classified_pixels)
+                            for i in s3:
+                                classified_pixels3[i[0], i[1]] = 10
+                            classified_pixels4 = copy.deepcopy(classified_pixels)
+                            for i in s4:
+                                classified_pixels4[i[0], i[1]] = 10
+
+                            # skip.append(s1)
+                            # skip.append(s2)
+                            remove_section_from_sections(s1, merged_sections)
+                            remove_section_from_sections(s2, merged_sections)
+                            # merged_sections.remove(s1)
+                            # merged_sections.remove(s2)
+                            merged_sections.append(s4)
+                            break
+                        elif any(np.all(s1[0] == s2, axis=1)):
+
+                            #skip da s1 und s2 vertauscht sind wird später richtigherum aufgerufen
+                            #print("H2")
+                            pass
                         else:
-                            s3 = s2[:np.where(np.all(s1[-1] == s2, axis=1) == True)[0][0]]
-                            s3.reverse()
-                            s4 = s1 + s3
-
-                        classified_pixels3 = copy.deepcopy(classified_pixels)
-                        for i in s3:
-                            classified_pixels3[i[0], i[1]] = 10
-                        classified_pixels4 = copy.deepcopy(classified_pixels)
-                        for i in s4:
-                            classified_pixels4[i[0], i[1]] = 10
-
-                        # skip.append(s1)
-                        # skip.append(s2)
-                        merged_sections.remove(s1)
-                        merged_sections.remove(s2)
-                        merged_sections.append(s4)
-                        break
-                    elif any(np.all(s1[0] == s2, axis=1)):
-                        print("H2")
-                    else:
-                        print("H3")
+                            pass
+                            #print("H3")
 
     return merged_sections
 
@@ -665,11 +675,7 @@ def merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels):
 
 def merge_crossingpixels1(crossing_pixels_in_port_sections, classified_pixels):
     all_crossing_pixels = np.stack(np.where(classified_pixels == 3), axis=1)
-    # a = copy.deepcopy(classified_pixels)
-    # for c in all_crossing_pixels:
-    #     for i in range(-3,4):
-    #         for j in range(-3, 4):
-    #             a[c[0]+i, c[1]+j]=1
+    a = copy.deepcopy(classified_pixels)
 
     for allc in all_crossing_pixels:
         if tuple(allc) not in crossing_pixels_in_port_sections.keys():
@@ -690,6 +696,12 @@ def merge_crossingpixels1(crossing_pixels_in_port_sections, classified_pixels):
 
             new_sections += cp[1]
         new_crossing_pixels_in_port_sections[center] = new_sections
+        #a = cv2.circle(a, (center[1],center[0]), 3, 3, -1)
+        radius = 3
+        for i in range(-radius, +radius + 1):
+            for j in range(-radius, +radius + 1):
+                if classified_pixels[center[0]+i, center[1]+j] >0:
+                    classified_pixels[center[0]+i, center[1]+j]=3
 
     return new_crossing_pixels_in_port_sections
 
@@ -698,7 +710,7 @@ def euclid_tuple(t1, t2):
 
 
 def try_to_merge(clusters):
-    thresh = 4
+    thresh = 7.1
     for cluster in clusters:
         for crossing_pixel in cluster:
             for other_cluster in clusters:
@@ -722,3 +734,10 @@ def section_in_sections(section, sections):
         if section_equal(s, section):
             return True
     return False
+
+def remove_section_from_sections(section, sections):
+    counter = 0
+    for s in sections:
+        if section_equal(s, section):
+            del sections[counter]
+        counter+=1
