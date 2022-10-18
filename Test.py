@@ -6,7 +6,7 @@ import numpy as np
 # Press Umschalt+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import math
-
+from collections import Counter
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
@@ -23,14 +23,24 @@ if __name__ == '__main__':
     #boxes= [[1,2],[3,4],[5,6],[7,8]]
     # print(boxes)
     #boxes = np.array(boxes)
-    pixels = np.zeros((500,500))
-    #x,y = 20
-    radiust =2
-    pixels[(2,2)] = 1
-    for i in range(-radiust, +radiust + 1):
-        for j in range(-radiust, +radiust + 1):
-            if ( radiust > i and i > -radiust) and (radiust > j and j > -radiust):
-                continue
-            pixels[(i+2,j+2)] = 1
-    print("Done")
+    # pixels = np.zeros((500,500))
+    # #x,y = 20
+    # radiust =2
+    # pixels[(2,2)] = 1
+    # for i in range(-radiust, +radiust + 1):
+    #     for j in range(-radiust, +radiust + 1):
+    #         if ( radiust > i and i > -radiust) and (radiust > j and j > -radiust):
+    #             continue
+    #         pixels[(i+2,j+2)] = 1
+    # print("Done")
+    import numpy as np
+
+
+
+    integers = [2, 4, 6, 8, 10, 3]
+    liste = [i % 2 == 0 for i in integers]
+    c = Counter(liste)
+    print(c)
+    # print(integers[np.where(list == c[1])])
+
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

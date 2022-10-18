@@ -18,7 +18,7 @@ def start():
     global IMAGE_PATH
     global MINSCORE
     MINSCORE= 0.75
-    IMAGE_NAME = "dd65c486-67f3-4f19-ab59-ea97eef308dd"
+    IMAGE_NAME = "7ad5660a-c851-4666-af5e-c81ba835bffc"
     IMAGE_PATH = os.path.join("images", IMAGE_NAME)
     #detections, image_np = load(IMAGE_NAME, IMAGE_PATH)
     image_np = load(IMAGE_NAME, IMAGE_PATH)
@@ -184,7 +184,7 @@ def connectNodes(edge_sections, boxes):
             for box in boxes:
                 if (box[3] == section[0][1] or box[3] + 1 == section[0][1]) and box[0] < section[0][0] and box[2] > section[0][0]:
                     connections[counter][1][0] = c
-                if box[1] == section[-1][1] + 1 and box[0] < section[-1][0] and box[2] > section[-1][0]:
+                if (box[1] == section[-1][1] + 1 or box[1] == section[-1][1] + 2) and box[0] < section[-1][0] and box[2] > section[-1][0]:
                     connections[counter][1][1] = c
                 c += 1
         else:
@@ -193,8 +193,9 @@ def connectNodes(edge_sections, boxes):
             for box in boxes:
                 if (box[3] == section[-1][1] or box[3] + 1 == section[-1][1]) and box[0] < section[-1][0] and box[2] > section[-1][0]:
                     connections[counter][1][0] = c
-                if box[1] == section[0][1] + 1 and box[0] < section[0][0] and box[2] > section[0][0]:
+                if (box[1] == section[0][1] + 1 or box[1] == section[0][1] + 2) and box[0] < section[0][0] and box[2] > section[0][0]:
                     connections[counter][1][1] = c
+
                 c += 1
         counter += 1
     return connections
