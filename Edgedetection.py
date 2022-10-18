@@ -1,38 +1,40 @@
 import copy
 import math
 import os
+
 import cv2
 import numpy as np
 import tensorflow as tf
+
 import Gates
 import morphology
-from object_detection.utils import ops as utils_ops
 from object_detection.utils import label_map_util
+from object_detection.utils import ops as utils_ops
 from object_detection.utils import visualization_utils as viz_utils
-
-
 
 
 def start():
     global IMAGE_NAME
     global IMAGE_PATH
     global MINSCORE
-    MINSCORE= 0.75
-    IMAGE_NAME = "7ad5660a-c851-4666-af5e-c81ba835bffc"
+    MINSCORE = 0.75
+    IMAGE_NAME = "2de031af-16e1-4dfd-ad87-96dda5ae1057"
     IMAGE_PATH = os.path.join("images", IMAGE_NAME)
     #detections, image_np = load(IMAGE_NAME, IMAGE_PATH)
     image_np = load(IMAGE_NAME, IMAGE_PATH)
     detection_model, category_index = loadModel()
-    detections = run_inference(detection_model,image_np)
+    detections = run_inference(detection_model, image_np)
     detections = detectFromImage(category_index, detection_model, image_np, detections)
     boxes, imageblack, box_pixel = drawboxes(detections, image_np)
     pre = preprocessing(imageblack)
     skel = drawedges(pre, boxes)
     classified_pixels, port_pixels = getclassifiedpixels(skel)
-    trivial_sections, port_sections, crossing_pixels_in_port_sections,= edge_sections_identify(
+    trivial_sections, port_sections, crossing_pixels_in_port_sections, = edge_sections_identify(
         classified_pixels, port_pixels)
-    crossing_pixels_in_port_sections = merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels)
-    merged_sections = traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port_pixels)
+    crossing_pixels_in_port_sections, boundingboxes = merge_crossingpixels(crossing_pixels_in_port_sections,
+                                                                           classified_pixels)
+    merged_sections = traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port_pixels,
+                                         boundingboxes)
     edge_sections = trivial_sections + merged_sections
     classified_pixelsa = copy.deepcopy(classified_pixels)
     for a in edge_sections:
@@ -452,15 +454,15 @@ def calcangle(vector_1, vector_2):
     return np.degrees(angle)
 
 
-def find_missing2(crossing_pixel, sections, classified_pixels):
-
+def find_missing2(crossing_pixel, sections, classified_pixels, boundingbox):
     for s in sections:
         s[0][0] = np.array(s[0][0])
-    radiust = 3 # smaler circle = 3
-    for i in range(-radiust, +radiust + 1):
-        for j in range(-radiust, +radiust + 1):
-            if ( radiust > i and i > -radiust) and (radiust > j and j > -radiust):
-                continue
+    # look around bondingbox form earlier
+    radiust = 3  # smaler circle = 3
+    for i in range(boundingbox[0], boundingbox[0] + boundingbox[2]):
+        for j in range(boundingbox[1], boundingbox[1] + boundingbox[3]):
+            # if ( radiust > i and i > -radiust) and (radiust > j and j > -radiust):
+            #     continue
             currentpos = (crossing_pixel[0] + i, crossing_pixel[1] + j)
             in_sections = False
             if classified_pixels[currentpos] == 3:
@@ -476,6 +478,7 @@ def find_missing2(crossing_pixel, sections, classified_pixels):
                             next = nextpos
                             section = [np.array(crossing_pixel)]
                             section += get_basic_section(next, classified_pixels, back)
+                            # todo wird nie gefunden
                             return section
     return None
 
@@ -546,7 +549,7 @@ def get_basic_section(start, classified_pixels, back):
     return section
 
 
-def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port_pixels):
+def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port_pixels, boundinboxes):
     merged_sections = []
     dir_offset = 4
     classified_pixelsf2 = copy.deepcopy(classified_pixels)
@@ -556,7 +559,7 @@ def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port
         anter += 1
         found = True
         while found:
-            found = find_missing2(crossing_pixel, sections, classified_pixels)
+            found = find_missing2(crossing_pixel, sections, classified_pixels, boundinboxes[crossing_pixel])
             if not found is None:
                 classified_pixelsf = copy.deepcopy(classified_pixels)
                 for i in found:
@@ -722,10 +725,19 @@ def merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels):
     clusters = [[c] for c in crossing_pixels_in_port_sections.items()]
     merge_happened = True
     new_crossing_pixels_in_port_sections = {}
+    boundingboxes = {}
     while merge_happened:
         merge_happened = try_to_merge(clusters)
     for c in clusters:
         center = tuple(np.round(np.array([p[0] for p in c]).mean(axis=0)).astype(int))
+        # color noncrossingpixels
+        boundingrect = cv2.boundingRect(np.asarray([np.asarray(x[0]) for x in c]))
+        for x in range(boundingrect[0], boundingrect[0] + boundingrect[2]):
+            for y in range(boundingrect[1], boundingrect[1] + boundingrect[3]):
+                if classified_pixels[x, y] == 2:
+                    classified_pixels[x, y] = 3
+
+        # ----
         classified_pixels[center] = 3
         new_sections = []
         for cp in c:
@@ -735,14 +747,15 @@ def merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels):
 
             new_sections += cp[1]
         new_crossing_pixels_in_port_sections[center] = new_sections
-        #a = cv2.circle(a, (center[1],center[0]), 3, 3, -1)
-        radius = 3 # smaler cicle = 3
-        for i in range(-radius, +radius + 1):
-            for j in range(-radius, +radius + 1):
-                if classified_pixels[center[0]+i, center[1]+j] >0:
-                    classified_pixels[center[0]+i, center[1]+j]=3
+        boundingboxes[center] = boundingrect
+        # a = cv2.circle(a, (center[1],center[0]), 3, 3, -1)
+        radius = 3  # smaler cicle = 3
+        # for i in range(-radius, +radius + 1):
+        #     for j in range(-radius, +radius + 1):
+        #         if classified_pixels[center[0]+i, center[1]+j] >0:
+        #             classified_pixels[center[0]+i, center[1]+j]=3
         #classified_pixels[center] = 31
-    return new_crossing_pixels_in_port_sections
+    return new_crossing_pixels_in_port_sections, boundingboxes
 
 def euclid_tuple(t1, t2):
     return np.linalg.norm(np.array(tuple(map(lambda i, j: i - j, t1, t2))))
