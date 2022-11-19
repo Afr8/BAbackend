@@ -18,14 +18,14 @@ def start():
     global IMAGE_PATH
     global MINSCORE
     MINSCORE = 0.75
-    IMAGE_NAME = "2de031af-16e1-4dfd-ad87-96dda5ae1057"
+    IMAGE_NAME = "e7ca4e59-0fa7-4ac9-a72f-3d4ee261bfa5"
     IMAGE_PATH = os.path.join("images", IMAGE_NAME)
     #detections, image_np = load(IMAGE_NAME, IMAGE_PATH)
     image_np = load(IMAGE_NAME, IMAGE_PATH)
     detection_model, category_index = loadModel()
     detections = run_inference(detection_model, image_np)
     detections = detectFromImage(category_index, detection_model, image_np, detections)
-    boxes, imageblack, box_pixel = drawboxes(detections, image_np)
+    boxes, imageblack = drawboxes(detections, image_np)
     pre = preprocessing(imageblack)
     skel = drawedges(pre, boxes)
     classified_pixels, port_pixels = getclassifiedpixels(skel)
@@ -41,12 +41,12 @@ def start():
         for b in a:
             classified_pixelsa[b[0], b[1]] = 10
         classified_pixelsa = copy.deepcopy(classified_pixels)
-    print(IMAGE_NAME)
+
+    print(" Image: "+ IMAGE_NAME + " with Min-Detections-Score of: " + str(MINSCORE))
     connections = connectNodes(edge_sections, boxes)
     elements = build(boxes, connections)
     solve(elements, boxes, image_np)
     Tabelle(elements)
-
 
 def Tabelle(elements):
     inputelements = []
@@ -77,7 +77,7 @@ def Tabelle(elements):
     for _ in range(0, len(outputelements)):
         print("+ - - - - - ", end="")
     print("+")
-    print("+|", end="")
+    print("|", end="")
     for element in inputelements:
         print("\t" + str(element[0].getValue()), end="\t|")
     print("\t|", end="")
@@ -110,6 +110,42 @@ def Tabelle(elements):
     for _ in range(0, len(outputelements)):
         print("+ - - - - - ", end="")
     print("+")
+
+def Tabelle2(elements):
+    inputelements = []
+    outputelements = []
+
+    for element in elements:
+        if type(element[0]) == Gates.Input:
+            element[0].setFalse()
+            inputelements.append(element)
+        elif type(element[0]) == Gates.Output:
+            outputelements.append(element)
+
+    for element in inputelements:
+        print("In: " + str(element[1]), end="&")
+    for element in outputelements:
+        print("Out:" + str(element[1]), end="&")
+    print("")
+    for element in inputelements:
+        print(str(element[0].getValue()), end="&")
+    for element in outputelements:
+        print("" + str(element[0].getValue()), end="&")
+    print("\hline")
+    for _ in range(1, int(math.pow(2, len(inputelements)))):
+        print("\hline")
+        scounter = 0
+        switched = True
+        while switched and scounter < len(inputelements):
+            switched = not inputelements[scounter][0].switch()
+            scounter += 1
+        for element in inputelements:
+            print(str(element[0].getValue()), end="&")
+
+        for element in outputelements:
+            print(str(element[0].getValue()), end="&")
+        print("")
+    print("\hline")
 
 
 
@@ -156,11 +192,8 @@ def run_inference(model, image):
 
 
 def detectFromImage(category_index, detection_model, image_np, detections):
-
-
     label_id_offset = 1
     image_np_with_detections = image_np.copy()
-
     viz_utils.visualize_boxes_and_labels_on_image_array(
         image_np_with_detections,
         detections['detection_boxes'],
@@ -289,13 +322,13 @@ def drawboxes(detections, image_np):
             (0, 0, 0),
             3)
         boxes[q] = [int(xmin), int(ymin), int(xmax), int(ymax), detections['detection_classes'][q]]
-        imageblack[int(xmin):int(xmax), int(ymin):int(ymax)] = (0, 0, 0)
+        #imageblack[int(xmin):int(xmax), int(ymin):int(ymax)] = (0, 0, 0)
+        imageblack[int(xmin):int(xmax), int(ymin):int(ymax)] = (255, 255, 255)
         box_pixel[int(xmin):int(xmax), int(ymin):int(ymax)] = (255, 255, 255)
     cv2.imwrite(os.path.join('images' + "/" + IMAGE_NAME + "/", IMAGE_NAME + '_imageblack' + '.jpg'), imageblack)
     cv2.imwrite(os.path.join('images' + "/" + IMAGE_NAME + "/", IMAGE_NAME + '_box_pixel' + '.jpg'), box_pixel)
     cv2.imwrite(os.path.join('images' + "/" + IMAGE_NAME + "/", IMAGE_NAME + '_numbers' + '.jpg'), image_np2)
-    return boxes, imageblack, box_pixel
-
+    return boxes, imageblack
 
 def preprocessing(imageblack):
     imgray = cv2.cvtColor(imageblack, cv2.COLOR_BGR2GRAY)
@@ -312,35 +345,30 @@ def preprocessing(imageblack):
 
 def drawedges(img2, boxes):
     Kanten = np.copy(img2)
-    for q in boxes:
-        Kanten[int(q[0]):int(q[2]), int(q[1]):int(q[3])] = (0, 0, 0)
+    # for q in boxes:
+    #     Kanten[int(q[0]):int(q[2]), int(q[1]):int(q[3])] = (0, 0, 0)
     A = np.copy(Kanten) / 255
     A = morphology.zhang_and_suen_binary_thinning(A)
-    for x in range(1, Kanten.shape[0] - 1):
-        for y in range(1, Kanten.shape[1] - 1):
+    for x in range(1, A.shape[0] - 1):
+        for y in range(1, A.shape[1] - 1):
             if A[x, y, 0] == 1:
                 d_1 = (x > 2) and (A[x - 2, y - 1, 0] == 0 or A[x - 2, y, 0] == 1 or A[x - 1, y - 1, 0] == 1)
                 d_2 = (y > 2) and (A[x + 1, y - 2, 0] == 0 or A[x, y - 2, 0] == 1 or A[x + 1, y - 1, 0] == 1)
-                d_3 = (y < Kanten.shape[1] - 2) and (
+                d_3 = (y < A.shape[1] - 2) and (
                         A[x - 1, y + 2, 0] == 0 or A[x, y + 2, 0] == 1 or A[x - 1, y + 1, 0] == 1)
-                d_4 = (y < Kanten.shape[1] - 2) and (
+                d_4 = (y < A.shape[1] - 2) and (
                         A[x + 1, y + 2, 0] == 0 or A[x, y + 2, 0] == 1 or A[x + 1, y + 1, 0] == 1)
                 if A[x - 1, y + 1, 0] == 1 and (A[x - 1, y, 0] == 1 and d_1):
-                    A[x - 1, y, 0] = 0
-                    A[x - 1, y, 1] = 0
-                    A[x - 1, y, 2] = 0
+                    A[x - 1, y] = [0, 0, 0]
                 if A[x - 1, y - 1, 0] == 1 and (A[x, y - 1, 0] == 1 and d_2):
-                    A[x, y - 1, 0] = 0
-                    A[x, y - 1, 1] = 0
-                    A[x, y - 1, 2] = 0
+                    A[x, y - 1] = [0, 0, 0]
                 if A[x + 1, y + 1, 0] == 1 and (A[x, y + 1, 0] == 1 and d_3):
-                    A[x + 1, y, 0] = A[x, y + 1, 0] = 0
-                    A[x + 1, y, 1] = A[x, y + 1, 1] = 0
-                    A[x + 1, y, 2] = A[x, y + 1, 2] = 0
+                    # A[x + 1, y, 0] = A[x, y + 1, 0] = 0
+                    # A[x + 1, y, 1] = A[x, y + 1, 1] = 0
+                    # A[x + 1, y, 2] = A[x, y + 1, 2] = 0
+                    A[x, y + 1] = [0, 0, 0]
                 if A[x - 1, y + 1, 0] == 1 and (A[x, y + 1, 0] == 1 and d_4):
-                    A[x, y + 1, 0] = 0
-                    A[x, y + 1, 1] = 0
-                    A[x, y + 1, 2] = 0
+                    A[x, y + 1] = [0, 0, 0]
 
     skel = A
     skel = skel * 255
@@ -379,8 +407,6 @@ def getclassifiedpixels(skel):
 def edge_sections_identify(classified_pixels, port_pixels):
     trivial_sections = []
     port_sections = []
-    crossing_sections = []
-    start_pixels = {}
     start_pixels = dict.fromkeys(port_pixels, 0)
     crossing_pixels_in_port_sections = {}
 
@@ -450,7 +476,7 @@ def calcangle(vector_1, vector_2):
     unit_vector_1 = vector_1 / np.linalg.norm(vector_1)
     unit_vector_2 = vector_2 / np.linalg.norm(vector_2)
     dot_product = np.dot(unit_vector_1, unit_vector_2)
-    angle = np.arccos(dot_product)
+    angle = np.arccos(max(-1,min(dot_product,1)))
     return np.degrees(angle)
 
 
@@ -463,8 +489,7 @@ def find_missing2(crossing_pixel, sections, classified_pixels, boundingbox):
         for j in range(boundingbox[1], boundingbox[1] + boundingbox[3]):
             # if ( radiust > i and i > -radiust) and (radiust > j and j > -radiust):
             #     continue
-            currentpos = (crossing_pixel[0] + i, crossing_pixel[1] + j)
-            in_sections = False
+            currentpos = ( i, j)
             if classified_pixels[currentpos] == 3:
                 back = currentpos
                 radius = 1
@@ -478,7 +503,6 @@ def find_missing2(crossing_pixel, sections, classified_pixels, boundingbox):
                             next = nextpos
                             section = [np.array(crossing_pixel)]
                             section += get_basic_section(next, classified_pixels, back)
-                            # todo wird nie gefunden
                             return section
     return None
 
@@ -551,7 +575,7 @@ def get_basic_section(start, classified_pixels, back):
 
 def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port_pixels, boundinboxes):
     merged_sections = []
-    dir_offset = 4
+
     classified_pixelsf2 = copy.deepcopy(classified_pixels)
     anter = 0
     for (crossing_pixel, sections) in crossing_pixels_in_port_sections.items():
@@ -573,8 +597,10 @@ def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port
         sectiondirs = []
         for cur_section in sections:
             # if crossing pixel is already visited, then continue
-
-            dir_offset = 4  # if crossing not allways at the end set to +/-
+            if len(cur_section) <4:
+                dir_offset = len(cur_section)
+            else:
+                dir_offset = 4  # if crossing not allways at the end set to +/-
 
             cur_section = cur_section[0]
             start_pixel = crossing_pixel
@@ -717,8 +743,6 @@ def merge_crossingpixels1(crossing_pixels_in_port_sections, classified_pixels):
 
 def merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels):
     all_crossing_pixels = np.stack(np.where(classified_pixels == 3), axis=1)
-    a = copy.deepcopy(classified_pixels)
-
     for allc in all_crossing_pixels:
         if tuple(allc) not in crossing_pixels_in_port_sections.keys():
             crossing_pixels_in_port_sections[tuple(allc)] = []
@@ -730,14 +754,11 @@ def merge_crossingpixels(crossing_pixels_in_port_sections, classified_pixels):
         merge_happened = try_to_merge(clusters)
     for c in clusters:
         center = tuple(np.round(np.array([p[0] for p in c]).mean(axis=0)).astype(int))
-        # color noncrossingpixels
         boundingrect = cv2.boundingRect(np.asarray([np.asarray(x[0]) for x in c]))
         for x in range(boundingrect[0], boundingrect[0] + boundingrect[2]):
             for y in range(boundingrect[1], boundingrect[1] + boundingrect[3]):
                 if classified_pixels[x, y] == 2:
                     classified_pixels[x, y] = 3
-
-        # ----
         classified_pixels[center] = 3
         new_sections = []
         for cp in c:
@@ -762,7 +783,7 @@ def euclid_tuple(t1, t2):
 
 
 def try_to_merge(clusters):
-    thresh = 7.1 # Smaler Circle = 7.1 bigger = 8.5
+    thresh = 8.6# Smaler Circle = 7.1 bigger = 8.5
     for cluster in clusters:
         for crossing_pixel in cluster:
             for other_cluster in clusters:
@@ -771,7 +792,6 @@ def try_to_merge(clusters):
                 for other_crossing_pixel in other_cluster:
                     if (euclid_tuple(crossing_pixel[0], other_crossing_pixel[0]) < thresh):
                         cluster += other_cluster
-
                         clusters.remove(other_cluster)
                         return True
     return False
