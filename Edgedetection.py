@@ -17,8 +17,10 @@ def start():
     global IMAGE_NAME
     global IMAGE_PATH
     global MINSCORE
+    global def_dir_offset
     MINSCORE = 0.75
-    IMAGE_NAME = "e7ca4e59-0fa7-4ac9-a72f-3d4ee261bfa5"
+    def_dir_offset = 4
+    IMAGE_NAME = "24c5c7e5-54e5-43ad-bcb0-a89e6e8714c5"
     IMAGE_PATH = os.path.join("images", IMAGE_NAME)
     #detections, image_np = load(IMAGE_NAME, IMAGE_PATH)
     image_np = load(IMAGE_NAME, IMAGE_PATH)
@@ -597,11 +599,10 @@ def traversal_subphase(classified_pixels, crossing_pixels_in_port_sections, port
         sectiondirs = []
         for cur_section in sections:
             # if crossing pixel is already visited, then continue
-            if len(cur_section) <4:
-                dir_offset = len(cur_section)
+            if len(cur_section[0]) <def_dir_offset:
+                dir_offset = len(cur_section[0])
             else:
-                dir_offset = 4  # if crossing not allways at the end set to +/-
-
+                dir_offset = def_dir_offset  # if crossing not allways at the end set to +/-
             cur_section = cur_section[0]
             start_pixel = crossing_pixel
             if np.array_equal(cur_section[0], np.array(crossing_pixel)):
