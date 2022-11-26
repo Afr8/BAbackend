@@ -31,7 +31,7 @@ def start():
     pre = preprocessing(imageblack)
     skel = drawedges(pre, boxes)
     classified_pixels, port_pixels = getclassifiedpixels(skel)
-    trivial_sections, port_sections, crossing_pixels_in_port_sections, = edge_sections_identify(
+    trivial_sections, crossing_pixels_in_port_sections, = edge_sections_identify(
         classified_pixels, port_pixels)
     crossing_pixels_in_port_sections, boundingboxes = merge_crossingpixels(crossing_pixels_in_port_sections,
                                                                            classified_pixels)
@@ -408,7 +408,6 @@ def getclassifiedpixels(skel):
 
 def edge_sections_identify(classified_pixels, port_pixels):
     trivial_sections = []
-    port_sections = []
     start_pixels = dict.fromkeys(port_pixels, 0)
     crossing_pixels_in_port_sections = {}
 
@@ -463,7 +462,6 @@ def edge_sections_identify(classified_pixels, port_pixels):
             trivial_sections.append(section)
 
         elif next_value == 3:  # crossing pixel
-            port_sections.append(section)
             pos = (next[0], next[1])
             if not pos in crossing_pixels_in_port_sections:
                 crossing_pixels_in_port_sections[pos] = []
@@ -471,7 +469,7 @@ def edge_sections_identify(classified_pixels, port_pixels):
             crossing_pixels_in_port_sections[pos].append([section, 0])
     start_pixels.clear()
 
-    return trivial_sections, port_sections, crossing_pixels_in_port_sections
+    return trivial_sections, crossing_pixels_in_port_sections
 
 
 def calcangle(vector_1, vector_2):
