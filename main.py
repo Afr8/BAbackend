@@ -9,8 +9,8 @@ import Edgedetection
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    #Edgedetection.start("24c5c7e5-54e5-43ad-bcb0-a89e6e8714c5")
     Edgedetection.start()
-
 
 
 
